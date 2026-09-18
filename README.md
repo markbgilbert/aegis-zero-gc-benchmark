@@ -107,6 +107,26 @@ We measured the exact delta of running 100% cryptographic auditability and telem
 
 > **Key Finding:** Ingesting batches with a 100% complete cryptographic audit trail in the Aegis arena requires only **1.40 µs**, compared to **997.70 µs** for un-logged PyTorch. Even with continuous audit logging, the zero-allocation arena is **712.6x faster** than the baseline.
 
+### 4. Reproduction Harnesses & Production Suite
+
+To independently run and verify all benchmarks on your hardware:
+
+```bash
+# Host Ingestion Feeder (136.3x faster than PyTorch DataLoader):
+python pytorch_feeder/bench_feeder.py
+
+# CPU Forward Pass & 32-Thread Scaling (Exact bit-parity against nanoGPT):
+python aegis_ai/bench_cpu_gpt2.py
+
+# GPU Direct CUDA Driver DMA Pipeline (PCIe Gen4 line-rate loading):
+python aegis_ai/bench_gpu_dma.py
+
+# In-Band 64B Cryptographic Audit Trail (17-18 cycles / 3.45 ns write):
+python aegis_ai/bench_telemetry.py
+```
+
+*Pre-compiled production Windows binaries are included in [`aegis_ai/bin/`](aegis_ai/bin) with C headers in [`aegis_ai/include/`](aegis_ai/include).*
+
 ---
 
 ## 🛠️ Methodology & Transparency
