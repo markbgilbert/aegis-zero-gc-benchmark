@@ -1,14 +1,18 @@
 cmake_minimum_required(VERSION 3.16)
-project(aegis_zero_gc_benchmark CXX)
+project(aegis_zero_gc_benchmark C)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-add_executable(aegis_benchmark benchmark.cpp)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 if(MSVC)
-    target_compile_options(aegis_benchmark PRIVATE /O2 /Oi /Ot /arch:AVX2)
+    add_compile_options(/O2 /arch:AVX2 /W4)
 else()
-    target_compile_options(aegis_benchmark PRIVATE -O3 -march=native -Wall -Wextra -pthread)
+    add_compile_options(-O3 -mavx2 -Wall -Wextra -pthread)
 endif()
+
+# Standalone 100M/1B operation hardware benchmark
+add_executable(bench_1b bench_1b.c)
+
+# Native shared library for PyTorch zero-GC tensor feeding
+add_library(aegis_feeder SHARED aegis_feeder.c)
+set_target_properties(aegis_feeder PROPERTIES PREFIX "")

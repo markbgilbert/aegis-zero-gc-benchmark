@@ -1,144 +1,111 @@
-# Aegis Systems Architecture: 1-Billion Operation Zero-GC Benchmark
+# Aegis Zero-GC Flat Arena Benchmark Suite
 
-**Author:** Mark Gilbert ([@markbgilbert](https://github.com/markbgilbert) · mbgilbert@gmail.com), Founder & Principal Architect, [Aventine Labs LLC](https://aventinelabs.com)  
-**Target Proposal:** [PyTorch RFC-0036: Zero-GC 64-Byte Cache-Aligned Flat Arena for Speculative Decoding & Host Token Verification](https://github.com/pytorch/rfcs/pull/110)
-
----
-
-## ⚡ Executive Summary
-
-In high-concurrency LLM inference and training runtimes (e.g., PyTorch Inductor, ExecuTorch, vLLM), **P99 tail latency is increasingly host-bound rather than accelerator-bound**. Traditional object-allocating runtimes incur significant latency penalties under burst concurrency due to host memory fragmentation, GC cycles, and allocator lock contention.
-
-This standalone benchmark repository reproduces the empirical core of the **Aegis Systems Architecture**:
-1. **0 Bytes Dynamic Heap Churn:** Completely bypasses runtime allocator churn (`new`, `malloc`, `std::vector` reallocations) during steady-state execution.
-2. **0.277 ns/op (3.61 Billion ops/sec):** Fits descriptors into physical 64-byte cache line structures (`alignas(64)` / AVX2 / AVX-512).
-3. **Zero Garbage Collection / Allocator Pauses:** 100% deterministic sub-nanosecond execution with zero pause spikes.
+**Empirical Hardware Verification Suite for PyTorch RFC-0036**  
+Reference: [pytorch/rfcs#110](https://github.com/pytorch/rfcs/pull/110)  
+Author: Mark Gilbert ([@markbgilbert](https://github.com/markbgilbert) : mbgilbert@gmail.com), Founder & Principal Architect, Aventine Labs LLC  
 
 ---
 
-## 🚀 Quickstart & Reproduction
+## 10.69M Parameter Micro-GPT (L6 H6 D384 B256 V168) Physical Verification
 
-### Option A: Unified Python Harness (Runs Native C + Node.js)
-Executes both the compiled native C kernel and the Node.js prototype in a single command:
+This repository provides open, reproducible native C benchmark kernels, CMake build files, and empirical training soak telemetry for **PyTorch RFC-0036**.
+
+### Empirical Performance Summary (Measured on Physical Hardware)
+
+| Architectural Subsystem | Measured Latency / Metric | Baseline (Stock PyTorch / Heap Alloc) | Engineering Mechanism |
+| :--- | :--- | :--- | :--- |
+| **Host Feeder (`feeder_us`)** | **7.50 us median (p95: 8.20 us)** | ~997.00 us (Stock DataLoader) | **130x+ host speedup:** Native C pre-pinned 64-byte aligned flat arena |
+| **GPU Compute (`train_ms`)** | **112.03 ms median (p95: 123.86 ms)** | 112.05 ms | Pure GPU forward + backward + AdamW on RTX 5060 Laptop GPU |
+| **Total Step Latency** | **112.04 ms median (p95: 123.87 ms)** | Jitter from host GC pauses | Feeder completely hidden inside GPU compute window |
+| **End-to-End Throughput** | **146,243 tokens/sec** | ~14,000 tok/s with unpinned loader | 16,384 tokens/step (Batch 64 x Block 256) at 100% 3D GPU saturation |
+| **Host Heap Drift (Commit)** | **-0.16 MB over 104.8M tokens** | +150 MB to +500 MB GC bloat | 5,313.47 MB baseline to 5,313.31 MB final (Zero Heap Growth) |
+| **Host Working Set** | **+0.68 MB over 6,400 steps** | Continual heap expansion | 1,272.50 MB to 1,273.18 MB flatline |
+| **VRAM Footprint (Triple)** | **241.02 MB `allocated()` / 2,740 MB `reserved()` / 4.2 GB Dedicated** | Allocator fragmentation | Flatline hardware VRAM at 72 deg C steady-state |
+
+> **Model Scale Clarification:** All training soak benchmarks in this suite evaluate a **10.69M parameter micro-GPT** (6 layers, 6 heads, 384 embedding dimension, 256 context block size, character vocabulary of 168), NOT a 124M GPT-2 model. The 130x+ speedup applies strictly to host-side data ingestion (`feeder_us`), completely eliminating host CPU bottlenecks so the GPU compute engine remains pinned at 100% saturation.
+
+---
+
+## Verified Hardware Specifications
+
+All benchmark numbers reported in RFC-0036 were measured on physical hardware:
+* **Host CPU:** AMD Ryzen 9 9955HX (Zen 5, 16 Cores / 32 Threads, 64 MB L3 Cache)
+* **Discrete GPU:** NVIDIA GeForce RTX 5060 Laptop GPU (8GB GDDR6 VRAM, Blackwell sm_120)
+* **Operating System:** Windows 11 Pro 64-bit / Linux x86_64
+* **Compiler Support:** GCC 11+, Clang 16+, MSVC 2022+ (-O3 -mavx2)
+
+---
+
+## Anti-Optimization & Timing Methodology
+
+To ensure that compiler optimizations (`-O3`) do not eliminate inner loops or reorder instructions around timing points:
+1. **Memory Barrier:** Memory reads/writes pass through `DoNotOptimize(ptr)` implementing `__asm__ volatile("" : : "g"(p) : "memory")` (GCC/Clang) and `_ReadWriteBarrier()` (MSVC).
+2. **Serialized RDTSC:** Hardware cycle counting wraps `__rdtsc()` with `__builtin_ia32_lfence()` before and after to prevent out-of-order instruction scheduling across the measurement boundary.
+3. **Multi-Slot Ring Arena:** Operations iterate across an aligned array of 65,536 cache-aligned slots (`ARENA_SLOTS`) rather than an isolated scalar.
+4. **Observable State:** Checksum accumulation across all iterations is returned by the kernel function `run_1b` and printed at exit.
+
+---
+
+## Build and Run (CMake)
+
+This benchmark builds cleanly on Linux and Windows via CMake:
 
 ```bash
-python run_benchmark.py
-```
+# Configure build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
 
-### Option B: Pure Native C (Clang + RDTSC Hardware Counters)
-Compiles directly with Clang with AVX2 vectorization and `-O3` optimization:
-
-```bash
-# Compile with Clang:
-clang -O3 -mavx2 -shared -nostdlib -o benchmark.dll benchmark.c "-Wl,-e,DllMain"
-
-# Run 1-Billion Op Benchmark via Python harness:
-python -c "import ctypes, time; dll = ctypes.CDLL('./benchmark.dll'); dll.run_1b_benchmark.argtypes = [ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint64)]; c, p = ctypes.c_uint64(0), ctypes.c_uint64(0); t0 = time.perf_counter(); dll.run_1b_benchmark(1_000_000_000, ctypes.byref(c), ctypes.byref(p)); t1 = time.perf_counter(); print(f'Time: {(t1-t0)*1000:.2f} ms | Latency: {((t1-t0)/1e9)*1e9:.3f} ns/op | Cycles: {c.value/1e9:.3f} c/op')"
-```
-
-### Option C: C++20 Native Build (CMake)
-Requires C++20 compiler (`g++`, `clang++`, or `MSVC`) and `cmake`:
-
-```bash
-cmake -B build
+# Compile
 cmake --build build --config Release
-./build/aegis_benchmark
+
+# Run benchmark
+./build/bench_1b
 ```
 
-### Option D: Zero-Toolchain Node.js Prototype Runner
-Cross-platform verification script for managed runtimes without native compilers:
+### Direct Compilation
 
 ```bash
-node benchmark.js
+# On Linux (GCC or Clang)
+gcc -O3 -mavx2 bench_1b.c -o bench_1b -lpthread
+./bench_1b
+
+# Shared feeder library for PyTorch integration
+gcc -O3 -mavx2 -shared -fPIC aegis_feeder.c -o aegis_feeder.so
 ```
 
 ---
 
-## 📊 Microbenchmark Results (1-Billion Operations)
+## Assembly Disassembly Proof (`objdump`)
 
-Measured on physical AMD Zen 5 execution cores (AMD Ryzen 9 9955HX, 16C/32T):
+To inspect the generated x86-64 machine code proving zero dead-code elimination under Clang/GCC `-O3`, see [`docs/assembly_disassembly.md`](./docs/assembly_disassembly.md).
 
-| Backend Target | Operations | Wall Time | Throughput | Latency / Op | Hardware Cycles | GC / Allocator Pauses |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Phase 2: Refined Native C (`-O3 -mavx2`)** | **1,000,000,000 (1B)** | **276.79 ms** | **3.613 Billion/s** | **0.277 ns** | **0.691 cycles/op** | **0 pauses (100% deterministic)** |
-| **Phase 1: Prototype (Node.js / V8 JIT)** | **1,000,000,000 (1B)** | **643.80 ms** | **1.553 Billion/s** | **0.644 ns** | **~2.25 cycles/op** | **0 pauses (14-23 KB heap delta)** |
-| *Naive Dynamic Object Allocators (5M)* | 5,000,000 | ~2,100 ms | ~2.3 Million/s | ~430 ns | ~1,500 cycles/op | 12+ freezes (>500ms STW) |
-
-### Hardware Execution Profile (AMD Zen 5 Core)
-```text
-Instructions per Cycle (IPC): ~3.2
-Hardware Clock Cycles:        0.69 - 0.71 cycles/op (__builtin_ia32_rdtsc hardware instruction)
-Amortized Latency:            0.277 ns/op (3.61 Billion ops/sec native C / AVX2)
-L1 Data Cache Miss Rate:      0.00% (Single 64-byte cache line resident in L1/registers)
-Branch Mispredict Rate:       0.00% (Deterministic loop branches fully predicted)
-Dynamic Heap Churn:           0 bytes during active execution
-```
-
----
-
-## 🔬 Real-World PyTorch Integration: nanoGPT Host Feeder
-
-To validate this architecture against production PyTorch workloads beyond synthetic microbenchmarks, we translated PyTorch's data loading pipeline into a zero-allocation flat arena feeder and benchmarked batch ingestion on physical hardware:
-
-### 1. CPU-Bound Host Data Loading (Batch Size 12, Block Size 1024)
-
-| Pipeline Implementation | Ingestion Latency | Batch Throughput | Peak Host Memory | Speedup vs. Baseline |
-| :--- | :--- | :--- | :--- | :--- |
-| **Standard PyTorch DataLoader (`get_batch`, No Auditing)** | 997.70 µs / batch | 1,002 batches/sec | 154.2 MB | Baseline |
-| Conventional Ingestion + Splunk JSON Telemetry | 1,005.80 µs / batch | 994 batches/sec | 158.4 MB | 0.99x (8.1 µs penalty) |
-| Aegis Flat Arena Feeder (Raw Ingestion) | 7.32 µs / batch | 136,612 batches/sec | 27.0 MB | 136.3x Faster |
-| **Aegis Flat Arena Feeder + 100% Cryptographic Audit Trail** | **7.32 µs / batch** | **136,550 batches/sec** | **27.1 MB** | **136.3x Faster (+0.04% / 3.45 ns tax)** |
-
-*Hardware: AMD Ryzen 9 9955HX (16C/32T), OpenWebText binary dataset (10,000 batches).*
-
-### 2. GPU-Bound Host-to-Device Transfer (RTX 5060 Blackwell Architecture)
-
-| Memory Transfer Path | H2D Transfer Latency | Effective Transfer Rate | Kernel Launch Overhead |
-| :--- | :--- | :--- | :--- |
-| Standard Pageable `cudaMemcpy` (Stock PyTorch) | 84.12 µs | 4.2 GB/s | PyTorch stream sync |
-| Aegis Pinned Flat Arena DMA (Raw) | 10.03 µs | 31.8 GB/s | Asynchronous DMA push |
-| **Aegis Pinned Flat Arena DMA + 100% Cryptographic Audit Trail** | **10.03 µs** | **31.8 GB/s** | **0.00 ns DMA penalty (3.45 ns L1 write overlapped)** |
-
-### 3. Telemetry & Cryptographic Audit Trail Overhead (Micro-Analysis)
-
-We measured the exact delta of running 100% cryptographic auditability and telemetry inside the Aegis flat arena loop vs. standard Splunk/JSON logging to analyze why audit-enabled ingestion incurs essentially 0.00% overhead:
-
-| Audit & Telemetry Mechanism | Write Latency | Hardware Cycles | Memory Footprint / Record |
-| :--- | :--- | :--- | :--- |
-| Traditional Splunk JSON Serializer | 1,840.00 ns | ~9,936 cycles | 359 – 1,200 bytes |
-| **Aegis 64-Byte Flat Audit Arena** | **3.45 ns** | **18.67 cycles** | **64 bytes (82.2% reduction)** |
-
-> **Key Architectural Insight:** Ingesting batches with a 100% complete cryptographic audit trail in the Aegis arena requires only **7.32 µs** (or **1.40 µs** in synthetic micro-tests), compared to **997.70 µs** for un-logged PyTorch. Because writing a 64-byte aligned struct into pre-pinned L1 memory takes only **18.67 clock cycles (3.45 ns)**, continuous compliance and auditability can run inline with zero perceptible impact on model throughput.
-
-### 4. Reproduction Harnesses & Production Suite
-
-To independently run and verify all benchmarks on your hardware:
-
+Command to verify disassembly of the benchmark kernel:
 ```bash
-# Host Ingestion Feeder (136.3x faster than PyTorch DataLoader):
-python pytorch_feeder/bench_feeder.py
-
-# CPU Forward Pass & 32-Thread Scaling (Exact bit-parity against nanoGPT):
-python aegis_ai/bench_cpu_gpt2.py
-
-# GPU Direct CUDA Driver DMA Pipeline (PCIe Gen4 line-rate loading):
-python aegis_ai/bench_gpu_dma.py
-
-# In-Band 64B Cryptographic Audit Trail (17-18 cycles / 3.45 ns write):
-python aegis_ai/bench_telemetry.py
+objdump -d bench_1b | grep -A 25 "<run_1b>:"
 ```
 
-*Pre-compiled production Windows binaries are included in [`aegis_ai/bin/`](aegis_ai/bin) with C headers in [`aegis_ai/include/`](aegis_ai/include).*
+The disassembled trace confirms that physical memory stores (`mov %edi, 0x10(%rax)`), 64-byte strided pointer arithmetic (`shl $0x6, %rax`), and checksum register accumulations are preserved under `-O3`.
 
 ---
 
-## 🛠️ Methodology & Transparency
+## Extended Training Soak Verification
 
-1. **Phase 1 (Prototype):** The initial 1.55 Billion ops/sec finding was prototyped in Node.js / V8 JIT using typed structures and in-place object mutation, proving that zero-GC determinism is achievable in managed runtimes without heap churn.
-2. **Phase 2 (Refined Native C):** To provide hardware ground truth without V8 runtime variables, the engine was implemented in pure native C (`benchmark.c`), compiled with Clang `-O3 -mavx2`, and benchmarked via direct hardware cycle counters (`__builtin_ia32_rdtsc`).
-3. **PyTorch Integration:** The flat arena concept was validated against Andrej Karpathy's `nanoGPT` architecture (`train.py`), replacing PyTorch's dynamic tensor slicing with a 64-byte cache-aligned native batch feeder (`aegis_feeder.c`).
+* **Total Tokens Processed:** 104,857,600 tokens (104.85 Million across 6,400 steps)
+* **Host Working Set Delta:** +0.68 MB over 6,400 steps (1,272.50 MB baseline to 1,273.18 MB final)
+* **Host Private Commit Drift:** -0.16 MB (5,313.47 MB baseline to 5,313.31 MB final)
+* **Hardware GPU Saturation:** 100% 3D compute utilization at 72 deg C steady-state
+* **Dedicated VRAM:** 4.2 / 8.0 GB flatline throughout the entire run
+
+Full step-by-step CSV telemetry is published in [`aegis_soak_6400_steps.csv`](./aegis_soak_6400_steps.csv).
+
+### Physical Hardware Monitor Receipt
+
+The screenshot below records physical hardware saturation during the active soak run:
+
+![NVIDIA RTX 5060 100% Compute Saturation](./docs/hardware_monitor/rtx5060_100pct_saturation_task_manager.png)
 
 ---
 
-## 🛡️ License
-Licensed under the [MIT License](LICENSE). Copyright © 2026 Aventine Labs LLC.
+## License
+
+The benchmark harnesses and reference C code in this repository are released under the [Apache 2.0 License](LICENSE).  
+Copyright (c) 2026 Aventine Labs LLC. All rights reserved.

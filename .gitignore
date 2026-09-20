@@ -4,5 +4,9 @@ __pycache__/
 build/
 /bin/
 dist/
+*.dll
+*.so
+*.dylib
+*.exe
 .DS_Store
 Thumbs.db
