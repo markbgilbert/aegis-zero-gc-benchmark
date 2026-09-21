@@ -291,6 +291,9 @@ echo -e "${BLUE}================================================================
 # Allocator Hardening: Suppress glibc ptmalloc sub-arena fragmentation jumps
 # Limit glibc malloc arena to 1 to prevent per-thread memory fragmentation pools
 export MALLOC_ARENA_MAX=1
+export MALLOC_TRIM_THRESHOLD_=65536
+export MALLOC_MMAP_THRESHOLD_=65536
+export MALLOC_TOP_PAD_=65536
 
 # Check for libjemalloc.so.2 and pre-load if available for absolute zero-drift allocator stability
 if [ -f "/usr/lib/x86_64-linux-gnu/libjemalloc.so.2" ]; then
@@ -303,7 +306,7 @@ else
     echo -e "${YELLOW}[!] Note: libjemalloc.so.2 not found, using hardened glibc ptmalloc (MALLOC_ARENA_MAX=1)${NC}"
 fi
 
-python3 "$WORK_DIR/soak_test_aegis_linux.py" --duration_minutes 60.0 --dataset soak_corpus
+python3 "$WORK_DIR/soak_test_aegis_linux.py" --duration_minutes 60.0 --dataset soak_corpus --csv aegis_soak_linux_60min_jemalloc.csv
 
 echo ""
 echo -e "${GREEN}================================================================================${NC}"

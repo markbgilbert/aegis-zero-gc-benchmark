@@ -60,6 +60,7 @@ def main():
     parser.add_argument("--dataset", type=str, default="soak_corpus", help="Dataset name in data/")
     parser.add_argument("--log_interval", type=int, default=100, help="Logging cadence")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--csv", type=str, default="aegis_soak_linux_60min_jemalloc.csv", help="CSV filename in results/")
     args = parser.parse_args()
 
     target_seconds = 0.0
@@ -247,7 +248,7 @@ def main():
 
     results_dir = os.path.join(bundle_dir, "results")
     os.makedirs(results_dir, exist_ok=True)
-    csv_path = os.path.join(results_dir, "aegis_soak_linux_60min.csv")
+    csv_path = os.path.join(results_dir, args.csv)
     csv_file = open(csv_path, "w", encoding="utf-8", buffering=1)
     csv_file.write("step,elapsed_s,loss,feeder_us,train_ms,total_iter_ms,tokens_per_sec,vram_alloc_mb,vram_reserved_mb,vm_rss_mb,vm_data_mb,rss_delta_mb,fnv1a_hash\n")
 
