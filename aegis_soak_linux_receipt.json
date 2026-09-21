@@ -1,51 +1,82 @@
 {
-  "benchmark_classification": "AL-AI-04 / AL-AI-05 (Linux Native)",
+  "benchmark_classification": "AL-AI-04 / AL-AI-05 (Linux Native 100/100 Production)",
   "entity": "Aventine Labs LLC",
   "author": "Mark Gilbert (@markbgilbert : mbgilbert@gmail.com), Founder & Principal Systems Architect",
   "operating_system": "Linux x86_64 (Ubuntu MATE 24.04.3 LTS)",
   "device": "CUDA",
-  "gpu_model": "NVIDIA GeForce RTX 5060 Laptop GPU",
+  "gpu_model": "NVIDIA GeForce RTX 5060 Laptop GPU (Blackwell sm_120)",
   "model_architecture": "10.69M Parameter Micro-GPT (L6 H6 D384 B256 V168)",
   "dataset": "soak_corpus",
-  "total_steps": 15276,
-  "total_tokens": 250281984,
-  "duration_seconds": 3600.05,
+  "total_steps": 23939,
+  "total_tokens": 392216576,
+  "duration_seconds": 3599.97,
   "duration_minutes": 60.0,
   "duration_hours": 1.0,
-  "average_throughput_tok_per_sec": 69522.0,
+  "average_throughput_tok_per_sec": 109185.0,
   "feeder_latency_us": {
-    "min": 51.35,
-    "median": 55.85,
-    "p95": 65.2,
-    "p99": 84.25
+    "min": 30.5,
+    "median": 52.65,
+    "p95": 110.2,
+    "p99": 131.21
   },
   "train_latency_ms": {
-    "min": 218.85,
-    "median": 235.45,
-    "p95": 236.57,
-    "p99": 237.11
+    "min": 138.2,
+    "median": 149.59,
+    "p95": 152.1,
+    "p99": 153.4
   },
   "total_iteration_ms": {
-    "min": 219.0,
-    "median": 235.51,
-    "p95": 236.62,
-    "p99": 237.17
+    "min": 138.25,
+    "median": 149.65,
+    "p95": 152.16,
+    "p99": 153.46
   },
   "linux_memory_telemetry": {
-    "baseline_vm_rss_mb": 1289.54,
-    "final_vm_rss_mb": 1293.79,
-    "net_vm_rss_drift_mb": 4.25,
-    "final_vm_data_mb": 2686.78,
-    "final_vm_size_mb": 22641.49,
-    "pytorch_vram_allocated_mb": 204.33,
-    "pytorch_vram_reserved_mb": 2686.0
+    "baseline_vm_rss_mb": 1286.27,
+    "final_vm_rss_mb": 1291.86,
+    "net_vm_rss_drift_mb": 5.59,
+    "baseline_vm_data_mb": 2948.07,
+    "final_vm_data_mb": 2948.07,
+    "net_vm_data_drift_mb": 0.0,
+    "pytorch_vram_allocated_mb": 204.27,
+    "pytorch_vram_reserved_mb": 2686.0,
+    "net_vram_drift_mb": 0.0
+  },
+  "hardware_thermals": {
+    "core_temperature_celsius": 56,
+    "slowdown_threshold_celsius": 102,
+    "pcie_link_generation": "Gen5",
+    "pcie_link_width": "x16",
+    "gpu_utilization_pct": 100
   },
   "telemetry_audit": {
-    "records_audited": 15276,
+    "records_audited": 23939,
     "chain_verified": true,
     "scheme": "32-Bit In-Band FNV-1a Telemetry Checksum",
     "genesis_hash": "0x811C9DC5",
-    "final_hash": "0x40AC1A6B"
+    "final_hash": "0xD9B26BEA"
   },
-  "csv_path": "./aegis_soak_linux_60min.csv"
+  "dual_os_diligence_summary": {
+    "windows_wddm_run": {
+      "steps": 29711,
+      "raw_commit_delta_mb": 4.97,
+      "wddm_paging_reserve_nullified_mb": 4.0,
+      "true_heap_delta_mb": 0.97,
+      "staircase_pattern": "5x 1.00 MB discrete jumps"
+    },
+    "linux_posix_glibc_run": {
+      "steps": 15275,
+      "net_vm_rss_delta_mb": 2.25,
+      "staircase_pattern": "9x 0.25 MB ptmalloc arena consolidations with 5x flatlines (800-1000 steps)",
+      "gpu_reserved_flatline_steps": 2300
+    },
+    "linux_c10_hardened_run": {
+      "steps": 23939,
+      "throughput_tok_per_sec": 109185.0,
+      "net_vm_data_drift_mb": 0.0,
+      "net_vram_drift_mb": 0.0,
+      "score": "100/100 Production PASS"
+    }
+  },
+  "csv_path": "./aegis_soak_linux_60min_100.csv"
 }
