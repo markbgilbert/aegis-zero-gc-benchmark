@@ -29,11 +29,12 @@ jobs:
         sudo apt-get update -qq
         sudo apt-get install -y build-essential cmake
 
-    - name: Build & Run Native C Benchmark (CMake Target)
+    - name: Build & Run Native C Benchmarks (CMake Target)
       run: |
         cmake -B build -DCMAKE_BUILD_TYPE=Release
         cmake --build build --config Release
         ./build/bench_1b 50000000
+        ./build/bench_contention 5000000
 
     - name: Direct GCC Compilation & Micro-Benchmark Run
       run: |

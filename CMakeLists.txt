@@ -13,6 +13,9 @@ endif()
 # Standalone 100M/1B operation hardware benchmark
 add_executable(bench_1b bench_1b.c)
 
+# Multi-threaded contention benchmark (1, 2, 4, 8 threads)
+add_executable(bench_contention bench_contention.c)
+
 # Native shared library for PyTorch zero-GC tensor feeding
 add_library(aegis_feeder SHARED aegis_feeder.c)
 set_target_properties(aegis_feeder PROPERTIES PREFIX "")

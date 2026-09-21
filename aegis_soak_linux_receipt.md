@@ -41,7 +41,7 @@ This benchmark delivers the official empirical receipt for **PyTorch RFC-0036**,
 | **GPU Reserved Drift** | 0.00 MB | 0.00 MB (Flat @ 2686.0 MB) | 0.00 MB (Flat @ 2686.0 MB) | Zero CUDA allocator bloat |
 | **Throughput / Latency**| ~135k tok/s / 121ms | 69.5k tok/s / 235ms | 109.2k tok/s / 149ms | Native streaming efficiency |
 | **Thermal Equilibrium** | 72°C steady-state | 67°C steady-state | 56°C steady-state | No thermal throttling |
-| **Hardware Scorecard** | **95/100 (Adjusted PASS)** | **95/100 (Empirical PASS)** | **100/100 (Production PASS)** | Verified by Meta AI Infra |
+| **Hardware Scorecard** | **95/100 (Adjusted PASS)** | **95/100 (Empirical PASS)** | **100/100 (Production PASS)** | Automated Systems Review (Meta AI Lens) |
 
 ---
 

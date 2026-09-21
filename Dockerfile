@@ -33,5 +33,5 @@ RUN cmake -B build -DCMAKE_BUILD_TYPE=Release && \
 RUN gcc -O3 -mavx2 -shared -fPIC aegis_feeder.c -o aegis_feeder.so && \
     gcc -O3 -mavx2 -shared -fPIC aegis_telemetry_engine.c -o aegis_telemetry.so
 
-# Default execution: Run 1B native benchmark and cross-language JS verification
-CMD ["/bin/bash", "-c", "./build/bench_1b 100000000 && node bench_1b.js"]
+# Default execution: Run 100M native benchmark, multi-threaded contention test, and cross-language JS verification
+CMD ["/bin/bash", "-c", "./build/bench_1b 100000000 && ./build/bench_contention 5000000 && node bench_1b.js"]
