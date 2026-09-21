@@ -1,0 +1,55 @@
+name: CI Benchmark & Integrity Verification
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Environment (GCC, CMake, Node.js, Python)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install System Dependencies
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y build-essential cmake
+
+    - name: Build & Run Native C Benchmark (CMake Target)
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release
+        ./build/bench_1b 50000000
+
+    - name: Direct GCC Compilation & Micro-Benchmark Run
+      run: |
+        gcc -O3 -mavx2 bench_1b.c -o bench_1b -lpthread
+        ./bench_1b 100000000
+
+    - name: Compile Shared Native Kernels
+      run: |
+        gcc -O3 -mavx2 -shared -fPIC aegis_feeder.c -o aegis_feeder.so
+        gcc -O3 -mavx2 -shared -fPIC aegis_telemetry_engine.c -o aegis_telemetry.so
+        ls -lh aegis_feeder.so aegis_telemetry.so
+
+    - name: Run Cross-Language JavaScript 1B Ops Benchmark
+      run: |
+        node bench_1b.js
+
+    - name: Verify 10-Minute Smoke Telemetry Integrity
+      run: |
+        python3 verify_smoke.py

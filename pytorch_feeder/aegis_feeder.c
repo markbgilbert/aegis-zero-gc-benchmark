@@ -1,5 +1,5 @@
 /**
- * Aegis Systems Architecture — Zero-Allocation 64-Byte Cache-Aligned Batch Ingestion Kernel
+ * Aegis Systems Architecture - Zero-Allocation 64-Byte Cache-Aligned Batch Ingestion Kernel
  * RFC Alignment: PyTorch RFC-0036 (Zero-GC 64-Byte Cache-Aligned Flat Arena)
  *
  * Copyright (c) 2026 Aventine Labs LLC.

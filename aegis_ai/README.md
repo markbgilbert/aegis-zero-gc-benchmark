@@ -18,7 +18,7 @@ This directory provides pre-compiled production binaries (`.dll`), public C inte
    - Page-locked host arena (`cuMemAllocHost`) to device flat arena (`cuMemAlloc`) achieving line-rate PCIe Gen4 DMA (**12.70 µs** vs 997.70 µs host loader).
 3. **In-Band 64-Byte Cryptographic Audit Engine (`bin/aegis_telemetry.dll`)**:
    - Atomic pointer writes into physical 64-byte cache line slots in **3.27 ns (17.67 CPU cycles)** via `__builtin_ia32_rdtsc`.
-   - 72.4% – 82.2% storage reduction vs. JSON logging with offline deferred materialization.
+   - 72.4% - 82.2% storage reduction vs. JSON logging with offline deferred materialization.
 
 ---
 

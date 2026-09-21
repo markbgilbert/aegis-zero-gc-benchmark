@@ -1,5 +1,5 @@
 /**
- * Aegis Systems Architecture (AL-LANG-02) — Public C/C++ API Definitions
+ * Aegis Systems Architecture (AL-LANG-02) - Public C/C++ API Definitions
  * 
  * Provides C-compatible interface declarations for the compiled Aegis AI binaries:
  * 1. aegis_gpt.dll         - CPU Forward Pass & Persistent Thread Pool Engine

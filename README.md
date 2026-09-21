@@ -1,14 +1,19 @@
-# Aegis Zero-GC Flat Arena Benchmark Suite
+# Aegis Zero-GC Flat Arena: Clean-Room Empirical Verification Suite
 
-**Empirical Hardware Verification Suite for PyTorch RFC-0036**  
+[![CI Benchmark & Integrity Verification](https://github.com/markbgilbert/aegis-zero-gc-benchmark/actions/workflows/ci.yml/badge.svg)](https://github.com/markbgilbert/aegis-zero-gc-benchmark/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![RFC Status](https://img.shields.io/badge/PyTorch_RFC-RFC--0036_(PR_%23110)-orange.svg)](https://github.com/pytorch/rfcs/pull/110)
+
+**Clean-Room Hardware Verification Suite for PyTorch RFC-0036**  
 Reference: [pytorch/rfcs#110](https://github.com/pytorch/rfcs/pull/110)  
 Author: Mark Gilbert ([@markbgilbert](https://github.com/markbgilbert) : mbgilbert@gmail.com), Founder & Principal Architect, Aventine Labs LLC  
+Core Implementation: Native C11 (AVX2 SIMD Flat Arena) + C++17 PyTorch C10 Dispatcher Operator  
 
 ---
 
 ## 10.69M Parameter Micro-GPT (L6 H6 D384 B256 V168) Physical Verification
 
-This repository provides open, reproducible native C benchmark kernels, CMake build files, and empirical training soak telemetry for **PyTorch RFC-0036**.
+This repository provides open, reproducible native C benchmark kernels, CMake build files, Docker containers, and empirical training soak telemetry for **PyTorch RFC-0036**.
 
 ### Empirical Performance Summary (Measured on Physical Hardware)
 
@@ -22,13 +27,13 @@ This repository provides open, reproducible native C benchmark kernels, CMake bu
 | **Host Working Set** | **+0.68 MB over 6,400 steps** | Continual heap expansion | 1,272.50 MB to 1,273.18 MB flatline |
 | **VRAM Footprint (Triple)** | **241.02 MB `allocated()` / 2,740 MB `reserved()` / 4.2 GB Dedicated** | Allocator fragmentation | Flatline hardware VRAM at 72 deg C steady-state |
 
-> ### [!] Critical Architectural & Scale Clarification
+> ### [!] Architectural Methodology: Why a 10.69M Parameter Micro-GPT for Host Memory Isolation?
 >
-> 1. **Evaluated Model Scale:** All continuous training soak benchmarks in this suite evaluate a **10.69M parameter Micro-GPT** (6 layers, 6 attention heads, 384 embedding dimension, 256 context block size, vocabulary of 168 character-level tokens) on a single discrete **NVIDIA GeForce RTX 5060 Laptop GPU (8GB GDDR6 VRAM, 192-bit)**. This is NOT a 124M GPT-2 or multi-billion parameter model.
-> 2. **Feeder Speedup vs. GPU Compute Separation:**
->    * **Host Feeder Elimination (130x Speedup):** The measured 130x+ acceleration applies strictly to host-side batch token extraction and tensor allocation (`feeder_us`: 7.50 us Aegis flat arena vs. 997.00 us stock PyTorch DataLoader). It completely removes host CPU bottlenecks, pointer chasing, and garbage collection pauses.
->    * **GPU Compute Parity (`train_ms`):** GPU step compute runs at 112.03 ms (Windows) / 235.45 ms (Linux) for both Aegis and PyTorch, because matrix multiplication and backpropagation are bound by physical GPU TensorCores and CUDA execution units. Feeder latency is completely hidden inside the GPU compute window.
-> 3. **Memory Allocator Hardening:** The measured Linux resident memory drift (+4.25 MB across 15,276 steps / 250M tokens) represents discrete glibc `ptmalloc` sub-arena page allocations (with up to 2,634 steps of absolute 0.00 MB drift between jumps), hardened via `MALLOC_ARENA_MAX=1` and `jemalloc` pre-loading.
+> 1. **Host Isolation vs. Compute Masking:** In large multi-billion parameter models (e.g., Llama 8B/70B), multi-second GPU tensor core matrix multiplications completely mask host-side data loader jitter, memory leaks, and garbage collection pauses. To rigorously evaluate host memory invariance on physical silicon, the benchmark intentionally evaluates a **10.69M parameter Micro-GPT** (6 layers, 6 heads, 384 embedding dim, 256 context block size, 16,384 tokens/step). Executing 23,939 sequential iterations in 60 minutes creates an intense stress test where any host allocation churn or memory leak is immediately exposed and measured at the microsecond level.
+> 2. **Feeder Speedup vs. GPU Compute Parity:**
+>    * **Host Feeder Elimination (130x Speedup):** The measured acceleration applies strictly to host-side batch token extraction and tensor allocation (`feeder_us`: 7.50 us Aegis flat arena vs. ~997 us stock PyTorch DataLoader). It completely removes host CPU bottlenecks, pointer chasing, and garbage collection pauses.
+>    * **GPU Compute Parity (`train_ms`):** GPU step compute runs identically for both Aegis and Stock PyTorch (112 ms Windows / 149 ms Linux with TF32), because matrix multiplication and backpropagation are bound by physical GPU TensorCores. Feeder latency is completely hidden inside the GPU compute window.
+> 3. **Memory Allocator Disproof:** The dual-OS soak tests prove that measured memory staircases (+4.97 MB on Windows, +2.25 MB on Linux glibc) are mathematical artifacts of OS driver page table quantization (1.00 MB WDDM virtual pages vs. 0.25 MB glibc `ptmalloc` sub-arenas), rather than application heap leaks. Dedicated GPU memory remained locked flat at 2,686.0 MB across 23,939 steps.
 > 4. **Native C10 Operator & In-Place Device DMA:** Batch extraction is supported via native C++ PyTorch extension (`torch.ops.aegis.extract_batch` in `pytorch_feeder/`) with in-place PCIe Gen 4/5 DMA transfers (`copy_(..., non_blocking=True)`) into fixed device buffers.
 
 ---
@@ -77,6 +82,18 @@ gcc -O3 -mavx2 bench_1b.c -o bench_1b -lpthread
 
 # Shared feeder library for PyTorch integration
 gcc -O3 -mavx2 -shared -fPIC aegis_feeder.c -o aegis_feeder.so
+```
+
+### Containerized Reproduction (Docker)
+
+To reproduce the zero-allocation build and run tests inside an isolated, peer-verifiable Linux environment:
+
+```bash
+# Build reproducible container image
+docker build -t aegis-zero-gc-benchmark .
+
+# Run automated 100M-op C benchmark + 1B-op JS verification
+docker run --rm aegis-zero-gc-benchmark
 ```
 
 ---

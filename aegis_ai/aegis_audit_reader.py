@@ -1,5 +1,5 @@
 """
-AEGIS SYSTEMS RUNTIME (AL-LANG-02) — OFFLINE AUDIT RECONSTITUTOR
+AEGIS SYSTEMS RUNTIME (AL-LANG-02) - OFFLINE AUDIT RECONSTITUTOR
 Paradigm: Deferred Materialization (Observer Pays Formatting Cost)
 Pillar Alignment: PILLAR 1 (100% Cryptographic Auditability, Zero Exceptions)
 """

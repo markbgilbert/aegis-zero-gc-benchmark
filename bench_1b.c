@@ -94,7 +94,12 @@ uint64_t run_1b(QueueOrder64* arena, uint64_t total_ops) {
 }
 
 int main(int argc, char** argv) {
-    const uint64_t TOTAL_OPS = 100000000ULL; /* 100 Million Ops with strict memory barrier */
+    /* Default: 1 Billion Operations (bench_1b), overridable via CLI argument */
+    uint64_t TOTAL_OPS = 1000000000ULL;
+    if (argc > 1) {
+        uint64_t parsed = strtoull(argv[1], NULL, 10);
+        if (parsed > 0) TOTAL_OPS = parsed;
+    }
 
     printf("================================================================================\n");
     printf("AEGIS STANDALONE ZERO-GC FLAT ARENA BENCHMARK (NATIVE C11 / AVX2)\n");
