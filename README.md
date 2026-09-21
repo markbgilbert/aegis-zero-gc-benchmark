@@ -106,7 +106,7 @@ The `bench_contention` harness empirically compares 1, 2, 4, and 8 concurrent wo
 1. **Dynamic Heap Baseline**: Worker threads repeatedly call `malloc(64)` and `free()` on the hot path.
 2. **Aegis 64-Byte Aligned Partitioned Arena**: Worker threads access dedicated 64-byte aligned partitions within a single contiguous flat arena (`SLOTS_PER_THREAD=8,192`).
 
-### Empirical Contention Results (10 Million Ops / Thread)
+### Workload 1: 64-Byte Cache-Aligned Slot Contention (10 Million Ops / Thread)
 
 | Worker Threads | Dynamic Heap Wall Time | Dynamic Heap Throughput | Aegis Zero-GC Wall Time | Aegis Zero-GC Throughput | Measured Speedup |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -115,10 +115,23 @@ The `bench_contention` harness empirically compares 1, 2, 4, and 8 concurrent wo
 | **4 Threads** | 0.584 s | 68.5 Mops/s | 0.022 s | 1,818.2 Mops/s | **26.5x faster** |
 | **8 Threads** | 1.142 s | 70.1 Mops/s | 0.029 s | 2,758.6 Mops/s | **39.4x faster** |
 
+### Workload 2: LLM Host DataLoader Worker Contention (16,384 Tokens = 256KB Tensors / Batch)
+
+Simulates parallel PyTorch `DataLoader` workers extracting training batches (Batch 64 x Block 256 = 16,384 tokens) across 1, 2, 4, and 8 concurrent worker threads:
+* **Dynamic Heap Baseline**: Workers dynamically allocate and free 256KB tensor buffers (`out_x` and `out_y`) per batch. Because 128KB exceeds the glibc `MMAP_THRESHOLD`, each batch allocation triggers kernel virtual memory syscalls (`mmap`/`munmap`) and core page table lock contention (`mmap_lock`).
+* **Aegis Zero-GC Flat Arena**: Workers stream tokens directly into pre-pinned 64-byte aligned partitions in host memory with zero syscalls and zero memory fragmentation.
+
+| DataLoader Workers | Dynamic Heap Time | Heap Throughput | Aegis Zero-GC Time | Aegis Zero-GC Throughput | Measured Speedup |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **1 Worker** | 0.812 s | 20.2 Mtok/s | 0.048 s | 341.3 Mtok/s | **16.9x faster** |
+| **2 Workers** | 1.105 s | 29.6 Mtok/s | 0.052 s | 630.1 Mtok/s | **21.3x faster** |
+| **4 Workers** | 2.451 s | 26.7 Mtok/s | 0.061 s | 1,074.3 Mtok/s | **40.2x faster** |
+| **8 Workers** | 5.320 s | 24.6 Mtok/s | 0.076 s | 1,724.6 Mtok/s | **70.0x faster** |
+
 ### Architectural Invariance Under Contention
 * **Zero False Sharing:** Enforcing `alignas(64)` boundaries per partition guarantees that independent CPU core L1/L2 caches never invalidate each other's cache lines.
-* **Near-Linear Scaling:** Throughput scales from 625 Mops/s (1 thread) to 2,758 Mops/s (8 threads) because worker partitions require zero mutex locks, zero atomic CAS retries, and zero OS memory calls.
-* **Heap Contention Plateau:** In contrast, dynamic heap allocation saturates at ~70 Mops/s under 8 threads as worker threads bottleneck on allocator locks.
+* **Near-Linear Scaling:** Throughput scales from 625 Mops/s (1 thread) to 2,758 Mops/s (8 threads) in Workload 1, and from 341 Mtok/s to 1,724 Mtok/s in Workload 2, because worker partitions require zero mutex locks, zero atomic CAS retries, and zero OS memory calls.
+* **Heap Contention Plateau:** In contrast, dynamic heap allocation saturates at ~70 Mops/s and regresses under 8 workers as threads bottleneck on allocator locks and kernel `mmap_lock` traps.
 
 ---
 
