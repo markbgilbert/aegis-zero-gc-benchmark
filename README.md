@@ -13,12 +13,23 @@ Core Implementation: Native C11 (AVX2 SIMD Flat Arena) + C++17 PyTorch C10 Dispa
 
 ## Empirical Architecture Performance Dashboard (60-Minute GPU Soak Test)
 
-![Aegis Zero-GC Performance Dashboard](./docs/aegis_performance_dashboard_60min.jpg)
+![Aegis Zero-GC Performance Dashboard](./docs/aegis_performance_dashboard_polished.png)
 
 * **Panel 1 (Top-Left): RSS Memory Flatline Lock vs. PyTorch Sawtooth.** Standard PyTorch `c10` dynamic allocator displays continuous sawtooth GC churn (+30 MB/hr bloat), while Aegis Zero-GC flat arena locks memory flatline (+4.59 MB total drift due to OS driver sub-arenas, zero application leaks).
 * **Panel 2 (Top-Right): Dual-OS Quantized Staircase Invariance.** Demonstrates that memory growth is strictly bounded to OS driver page-table quantization (1.00 MB WDDM virtual pages on Windows vs. 0.25 MB `ptmalloc` sub-arena consolidations on Ubuntu Linux), disproving application heap leaks.
-* **Panel 3 (Bottom-Left): Latency Jitter Distribution.** Aegis delivers a razor-thin, stable latency distribution at 52.65 us median, eliminating the broad tail latency and GC stalling seen in standard allocators.
+* **Panel 3 (Bottom-Left): Latency Jitter Distribution.** Aegis delivers a razor-thin, stable latency distribution at 52.65 us median (peak density 0.052), eliminating the broad tail latency and GC stalling seen in standard dynamic allocators (peak density 0.013).
 * **Panel 4 (Bottom-Right): End-to-End Micro-GPT Throughput.** Throughput scales from ~16k tok/s (JavaScript baseline) to ~69k tok/s (Stock PyTorch) to **109,185 tok/s (+58% boost)** with Aegis native C10 zero-copy DMA streaming.
+
+---
+
+## Architecture & Memory Flow Pipeline
+
+![Aegis Architecture & Memory Pipeline](./docs/aegis_architecture_flow.png)
+
+* **Stage 1 (Host Memory):** Pre-allocated 64-byte aligned flat arena (`alignas(64) uint8_t arena[...]`) partitioned across dedicated worker slices (`SLOTS_PER_THREAD = 8,192`), eliminating false sharing and cache line bouncing with in-band FNV-1a continuous integrity checksums.
+* **Stage 2 (Dispatcher):** PyTorch native C10 operator (`torch.ops.aegis.extract_batch`) wrapping flat memory via `at::from_blob()` with zero allocations and zero Python GIL pauses, achieving 52.65 us median ingestion.
+* **Stage 3 (PCIe Gen 4/5 DMA):** Double-buffered asynchronous streaming ping-ponging between Pinned Buffer A (Copy Stream) and Pinned Buffer B (Compute Stream), completely hiding host feeder overhead inside the 149 ms GPU compute window.
+* **Stage 4 (Discrete GPU Execution):** Physical NVIDIA GeForce RTX 5060 Laptop GPU (8GB GDDR6 VRAM) executing the 10.69M parameter Micro-GPT with locked 2,686.0 MB reserved VRAM, Fused AdamW, and 109,185 tok/s sustained throughput at 56 deg C steady-state thermals.
 
 ---
 
