@@ -166,12 +166,28 @@ def main():
         device_type=args.device
     )
 
+    if args.device == "cuda":
+        torch.set_float32_matmul_precision("high")
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+
     # Pre-allocate pinned host DMA memory arena
     pin_mem = (args.device == "cuda")
     aegis_x_host = torch.empty((args.batch_size, args.block_size), dtype=torch.int64, pin_memory=pin_mem)
     aegis_y_host = torch.empty((args.batch_size, args.block_size), dtype=torch.int64, pin_memory=pin_mem)
     aegis_x_ptr = aegis_x_host.data_ptr()
     aegis_y_ptr = aegis_y_host.data_ptr()
+
+    # Pre-allocate fixed device tensors for zero-alloc DMA transfers
+    if args.device == "cuda":
+        aegis_x_dev = torch.empty((args.batch_size, args.block_size), dtype=torch.int64, device=args.device)
+        aegis_y_dev = torch.empty((args.batch_size, args.block_size), dtype=torch.int64, device=args.device)
+    else:
+        aegis_x_dev = aegis_x_host
+        aegis_y_dev = aegis_y_host
+
+    # Pre-allocated index buffer for zero-alloc random sampling
+    batch_indices = torch.empty((args.batch_size,), dtype=torch.int64)
 
     train_data_ptr = train_mmap.ctypes.data
     val_data_ptr = val_mmap.ctypes.data
@@ -189,22 +205,20 @@ def main():
         data_ptr = train_data_ptr if split == "train" else val_data_ptr
         length = train_len if split == "train" else val_len
         high = length - args.block_size - 1
-        ix = np.random.randint(0, high, size=args.batch_size, dtype=np.int64)
+        torch.randint(0, high, (args.batch_size,), out=batch_indices)
         feeder_dll.aegis_extract_batch(
             ctypes.c_void_p(data_ptr),
-            ctypes.c_void_p(ix.ctypes.data),
+            ctypes.c_void_p(batch_indices.data_ptr()),
             ctypes.c_int64(args.batch_size),
             ctypes.c_int64(args.block_size),
             ctypes.c_void_p(aegis_x_ptr),
             ctypes.c_void_p(aegis_y_ptr)
         )
         if args.device == "cuda":
-            bx = aegis_x_host.to(args.device, non_blocking=True)
-            by = aegis_y_host.to(args.device, non_blocking=True)
-        else:
-            bx = aegis_x_host
-            by = aegis_y_host
-        return bx, by
+            # Non-blocking in-place PCIe DMA push into fixed device arena
+            aegis_x_dev.copy_(aegis_x_host, non_blocking=True)
+            aegis_y_dev.copy_(aegis_y_host, non_blocking=True)
+        return aegis_x_dev, aegis_y_dev
 
     print("Warming up GPU and CUDA compute engine (25 iterations)...")
     for _ in range(25):

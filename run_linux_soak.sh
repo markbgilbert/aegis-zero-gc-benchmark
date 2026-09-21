@@ -235,7 +235,10 @@ echo -e "\n${YELLOW}[Step 2/5] Checking Build Tools (GCC)...${NC}"
 if ! command -v gcc &> /dev/null; then
     echo -e "${YELLOW}[+] Installing build-essential (GCC)...${NC}"
     sudo apt update -qq
-    sudo apt install -y build-essential
+    sudo apt install -y build-essential libjemalloc2 libjemalloc-dev 2>/dev/null || sudo apt install -y build-essential
+fi
+if ! dpkg -s libjemalloc2 &> /dev/null; then
+    sudo apt install -y libjemalloc2 2>/dev/null || true
 fi
 echo -e "${GREEN}[✓] GCC version: $(gcc --version | head -n 1)${NC}"
 
@@ -284,6 +287,21 @@ echo -e "\n${BLUE}==============================================================
 echo -e "${GREEN}${BOLD}[Step 5/5] Launching 60-Minute Aegis Soak Harness (Linux Native)...${NC}"
 echo -e "Real-time CSV stream: $RESULTS_DIR/aegis_soak_linux_60min.csv"
 echo -e "${BLUE}================================================================================${NC}"
+
+# Allocator Hardening: Suppress glibc ptmalloc sub-arena fragmentation jumps
+# Limit glibc malloc arena to 1 to prevent per-thread memory fragmentation pools
+export MALLOC_ARENA_MAX=1
+
+# Check for libjemalloc.so.2 and pre-load if available for absolute zero-drift allocator stability
+if [ -f "/usr/lib/x86_64-linux-gnu/libjemalloc.so.2" ]; then
+    echo -e "${GREEN}[✓] Hardening allocator: Pre-loading libjemalloc.so.2 (MALLOC_ARENA_MAX=1)${NC}"
+    export LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libjemalloc.so.2"
+elif [ -f "/usr/lib/libjemalloc.so.2" ]; then
+    echo -e "${GREEN}[✓] Hardening allocator: Pre-loading libjemalloc.so.2 (MALLOC_ARENA_MAX=1)${NC}"
+    export LD_PRELOAD="/usr/lib/libjemalloc.so.2"
+else
+    echo -e "${YELLOW}[!] Note: libjemalloc.so.2 not found, using hardened glibc ptmalloc (MALLOC_ARENA_MAX=1)${NC}"
+fi
 
 python3 "$WORK_DIR/soak_test_aegis_linux.py" --duration_minutes 60.0 --dataset soak_corpus
 
