@@ -49,6 +49,8 @@ This repository provides open, reproducible native C benchmark kernels, CMake bu
 | **Host Working Set** | **+0.68 MB over 6,400 steps** | Continual heap expansion | 1,272.50 MB to 1,273.18 MB flatline |
 | **VRAM Footprint (Triple)** | **241.02 MB `allocated()` / 2,740 MB `reserved()` / 4.2 GB Dedicated** | Allocator fragmentation | Flatline hardware VRAM at 72 deg C steady-state |
 
+*\*Note on throughput variation across benchmark setups: The 146,243 tokens/sec figure represents peak burst feeder throughput with 16,384 tokens/step (Batch 64 x Block 256) into pinned GPU device memory. Sustained end-to-end training throughput across unbroken 60-minute runs is 135,216 tokens/sec on Windows 11 and 109,185 tokens/sec on Linux Ubuntu 24.04 (with native PyTorch C10 operator integration, TF32 precision, and double-buffered CUDA streams). See the Dual-OS Empirical Benchmark Matrix below for side-by-side configuration details.*
+
 > ### [!] Architectural Methodology: Why a 10.69M Parameter Micro-GPT for Host Memory Isolation?
 >
 > 1. **Host Isolation vs. Compute Masking:** In large multi-billion parameter models (e.g., Llama 8B/70B), multi-second GPU tensor core matrix multiplications completely mask host-side data loader jitter, memory leaks, and garbage collection pauses. To rigorously evaluate host memory invariance on physical silicon, the benchmark intentionally evaluates a **10.69M parameter Micro-GPT** (6 layers, 6 heads, 384 embedding dim, 256 context block size, 16,384 tokens/step). Executing 23,939 sequential iterations in 60 minutes creates an intense stress test where any host allocation churn or memory leak is immediately exposed and measured at the microsecond level.
@@ -326,6 +328,8 @@ If the C++20 transpiler had an unmanaged heap leak, the leak curve would have be
 | **In-Band Provenance** | 100% Chain (29,711 steps) | 100% Chain (15,276 steps) | **100% Chain (23,939 steps)** | Cryptographic batch attestation verified |
 | **Final Checksum Hash** | `0xFEA389B3` | `0x40AC1A6B` | `0xD9B26BEA` | Cryptographic continuity intact |
 | **Production Hardening** | **Baseline Verified** | **Empirical PASS** | **Production Hardened** | Continuous bare-metal soak |
+
+*\*Note on throughput variation across benchmark setups: The 146,243 tokens/sec figure represents peak burst feeder throughput with 16,384 tokens/step (Batch 64 x Block 256) into pinned GPU device memory. Sustained end-to-end training throughput across unbroken 60-minute runs is 135,216 tokens/sec on Windows 11 and 109,185 tokens/sec on Linux Ubuntu 24.04 (with native PyTorch C10 operator integration, TF32 precision, and double-buffered CUDA streams).*
 
 ---
 
