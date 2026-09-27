@@ -1,5 +1,5 @@
 {
-  "benchmark_classification": "AL-AI-04 / AL-AI-05 (Linux Native 100/100 Production)",
+  "benchmark_classification": "AL-AI-04 / AL-AI-05 (Linux Native Production Hardened)",
   "entity": "Aventine Labs LLC",
   "author": "Mark Gilbert (@markbgilbert : mbgilbert@gmail.com), Founder & Principal Systems Architect",
   "operating_system": "Linux x86_64 (Ubuntu MATE 24.04.3 LTS)",
@@ -75,7 +75,7 @@
       "throughput_tok_per_sec": 109185.0,
       "net_vm_data_drift_mb": 0.0,
       "net_vram_drift_mb": 0.0,
-      "score": "100/100 Production PASS"
+      "status": "Production Hardened PASS"
     }
   },
   "csv_path": "./aegis_soak_linux_60min_100.csv"
