@@ -69,4 +69,4 @@ python3 "$WORK_DIR/soak_test_aegis_linux.py" --duration_minutes 10.0 --dataset s
 echo -e "\n${GREEN}================================================================================${NC}"
 echo -e "${GREEN}${BOLD}[✓] 10-MINUTE SMOKE VALIDATION COMPLETED!${NC}"
 echo -e "${GREEN}================================================================================${NC}"
-echo -e "If test_10min.csv shows flatline VmRSS and 0.00 MB VRAM delta, run ./run_linux_soak.sh for full 60-min 100/100 receipt."
+echo -e "If test_10min.csv shows flatline VmRSS and 0.00 MB VRAM delta, run ./run_linux_soak.sh for full 60-min production soak receipt."

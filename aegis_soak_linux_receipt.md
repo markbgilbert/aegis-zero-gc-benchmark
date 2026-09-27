@@ -20,7 +20,7 @@ This benchmark delivers the official empirical receipt for **PyTorch RFC-0036**,
    * **Linux (POSIX glibc ptmalloc2):** 9x 0.25 MB sub-arena consolidations (+2.25 MB over 15,275 steps), interrupted by 5 distinct flatlines of 800 to 1,000 steps with **0.00 MB growth**. Dedicated GPU reserved memory remained locked at 2,686.0 MB for 2,300 consecutive steps.
    * **Mathematical Proof:** The exact same C++20 transpiler binary exhibits discrete 1.00 MB steps on Windows and 0.25 MB steps on Linux while dedicated GPU memory remains completely flat. This proves that the staircase represents OS driver page-table reserves rather than application heap leakage.
 
-2. **Production 100/100 Hardened Run (`aegis_soak_linux_60min_100.csv`):**
+2. **Production Hardened Run (`aegis_soak_linux_60min_100.csv`):**
    * **Sustained Scale:** Processed **392,216,576 tokens** across **23,939 sequential steps** in exactly **3,599.97 seconds (60.0 minutes)**.
    * **Massive Throughput:** Averaged **109,185 tokens/sec** at **149.59 ms median step latency** (+57% throughput acceleration over unhardened baseline).
    * **Zero VRAM / VmData Leak:** PyTorch VRAM allocated locked flat at **204.27 MB** (0.00 MB drift). PyTorch VRAM reserved locked flat at **2,686.00 MB** (0.00 MB drift). Host `VmData` locked flat at **2,948.07 MB** (0.00 MB drift).

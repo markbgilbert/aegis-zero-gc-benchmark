@@ -280,7 +280,7 @@ To evaluate physical stability beyond micro-benchmarks, the Aegis training harne
 
 Complete time-series telemetry files:
 * Windows 60-Min Soak (29,711 steps): [`aegis_soak_60min.csv`](./aegis_soak_60min.csv)
-* Linux 60-Min Production 100/100 Soak (23,939 steps): [`aegis_soak_linux_60min_100.csv`](./aegis_soak_linux_60min_100.csv)
+* Linux 60-Min Production Hardened Soak (23,939 steps): [`aegis_soak_linux_60min_100.csv`](./aegis_soak_linux_60min_100.csv)
 * Linux 60-Min Glibc Baseline Soak (15,276 steps): [`aegis_soak_linux_60min.csv`](./aegis_soak_linux_60min.csv)
 * Linux 10-Min Smoke Test (3,975 steps): [`test_10min.csv`](./test_10min.csv)
 
@@ -309,7 +309,7 @@ If the C++20 transpiler had an unmanaged heap leak, the leak curve would have be
 
 ## Dual-OS Empirical Benchmark Matrix
 
-| Metric | Windows 11 Pro 64-bit (WDDM) | Linux Native (glibc baseline) | Linux Native (C10 + Hardened 100/100) | Diligence Interpretation |
+| Metric | Windows 11 Pro 64-bit (WDDM) | Linux Native (glibc baseline) | Linux Native (C10 + Production Hardened) | Diligence Interpretation |
 | :--- | :--- | :--- | :--- | :--- |
 | **Model Geometry** | **10.69M Micro-GPT** | **10.69M Micro-GPT** | **10.69M Micro-GPT** | Fixed architecture standard |
 | **Continuous Duration** | **60.00 min (3600.07 s)** | **60.00 min (3600.05 s)** | **60.00 min (3599.97 s)** | Multi-hour hardware saturation |
