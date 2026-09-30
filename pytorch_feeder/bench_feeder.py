@@ -77,9 +77,20 @@ def run_feeder_benchmark():
     # 2. Aegis Zero-Allocation Flat Arena Feeder Kernel
     # -------------------------------------------------------------
     print("[*] Benchmarking Aegis Zero-Allocation Flat Arena Kernel...")
-    dll_path = os.path.join(os.path.dirname(__file__), "aegis_feeder.dll")
-    if not os.path.exists(dll_path):
-        print(f"[-] aegis_feeder.dll not found at {dll_path}")
+    candidates = [
+        os.path.join(os.path.dirname(__file__), "aegis_feeder.so"),
+        os.path.join(os.path.dirname(__file__), "..", "aegis_feeder.so"),
+        os.path.join(os.path.dirname(__file__), "aegis_feeder.dll"),
+        os.path.join(os.path.dirname(__file__), "..", "aegis_feeder.dll"),
+    ]
+    dll_path = None
+    for cand in candidates:
+        if os.path.exists(cand):
+            dll_path = cand
+            break
+
+    if not dll_path:
+        print(f"[-] aegis_feeder library (.so/.dll) not found in candidate paths.")
         return
 
     dll = ctypes.CDLL(dll_path)

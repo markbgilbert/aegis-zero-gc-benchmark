@@ -9,6 +9,12 @@ Reference: [pytorch/rfcs#110](https://github.com/pytorch/rfcs/pull/110)
 Author: Mark Gilbert ([@markbgilbert](https://github.com/markbgilbert) : mbgilbert@gmail.com), Founder & Principal Architect, Aventine Labs LLC  
 Core Implementation: Native C11 (AVX2 SIMD Flat Arena) + C++17 PyTorch C10 Dispatcher Operator  
 
+> ### Author Notice & Architectural Scope (September 30, 2026)
+> 
+> * **Feeder Micro-Benchmark vs. End-to-End Training:** The 130x - 136x acceleration figures reported in this repository isolate CPU host batch extraction, pointer traversal, and memory-mapping overhead (3.27 us vs 141 us). In compute-bound GPU training (>98% compute time), feeder acceleration provides an incremental +0.58% wall-clock gain. When executed natively with BF16 Tensor Cores (`cublasLtMatmul`) and cuDNN FlashAttention, Native Aegis achieves **230,705 tok/s (71.03 ms)** versus PyTorch's **198,000 tok/s (82.82 ms)**, delivering a **+16.5% sustained throughput advantage** with only 2 page faults (vs. 295M in PyTorch).
+> * **In-Band Integrity vs. Cryptographic Modules:** State continuity across batches uses a 32-bit FNV-1a checksum chain designed for zero-latency tamper-evident sequence tracking. It is designated strictly as **in-band tamper-evident state hashing** and is not a FIPS 140-3 cryptographic cipher. Cryptographic verification receipts are preserved via SHA-256 disk artifacts.
+> * **Official RFC Status:** See the author retraction and update notice on [PyTorch RFC-0036 (PR #110)](https://github.com/pytorch/rfcs/pull/110).
+
 ---
 
 ## Empirical Architecture Performance Dashboard (60-Minute GPU Soak Test)
@@ -59,6 +65,22 @@ This repository provides open, reproducible native C benchmark kernels, CMake bu
 >    * **GPU Compute Parity (`train_ms`):** GPU step compute runs identically for both Aegis and Stock PyTorch (112 ms Windows / 149 ms Linux with TF32), because matrix multiplication and backpropagation are bound by physical GPU TensorCores. Feeder latency is completely hidden inside the GPU compute window.
 > 3. **Memory Allocator Disproof:** The dual-OS soak tests prove that measured memory staircases (+4.97 MB on Windows, +2.25 MB on Linux glibc) are mathematical artifacts of OS driver page table quantization (1.00 MB WDDM virtual pages vs. 0.25 MB glibc `ptmalloc` sub-arenas), rather than application heap leaks. Dedicated GPU memory remained locked flat at 2,686.0 MB across 23,939 steps.
 > 4. **Native C10 Operator & In-Place Device DMA:** Batch extraction is supported via native C++ PyTorch extension (`torch.ops.aegis.extract_batch` in `pytorch_feeder/`) with in-place PCIe Gen 4/5 DMA transfers (`copy_(..., non_blocking=True)`) into fixed device buffers.
+
+### Physical Silicon Parity & Factorial Ablation (NVIDIA RTX 5060 Laptop GPU)
+
+To isolate why initial Native CUDA iterations operated at ~242 ms/step compared to PyTorch's ~82 ms/step, an empirical 4-way factorial ablation was executed on physical hardware:
+
+| Architecture & Precision Configuration | Forward Pass | Backward Pass | Total Step Time | Throughput |
+| :--- | :--- | :--- | :--- | :--- |
+| **PyTorch BF16 + FlashAttention (SDPA)** | 27.55 ms | 55.51 ms | **83.06 ms** | 197,255 tok/s |
+| **PyTorch FP32 + FlashAttention (SDPA)** | 83.36 ms | 147.54 ms | **230.90 ms** | 70,957 tok/s |
+| **PyTorch FP32 + Un-fused Manual Attention** | 106.95 ms | 165.97 ms | **272.93 ms** | 60,030 tok/s |
+| **Native Aegis C++20 / CUDA (FP32 cuBLAS)** | 96.69 ms | 148.36 ms | **245.88 ms** | 67,636 tok/s |
+
+* **Identical Math (9.9% Native Advantage):** On identical FP32 un-fused math (272.93 ms PyTorch vs 245.88 ms Native), Native Aegis is **27.05 ms (9.9%) faster** due to the elimination of Python runtime overhead, GIL contention, and dynamic heap churn.
+* **Blackwell Tensor Core Parity (+16.5% Throughput):** When upgraded to `cublasLtMatmul` (BF16 inputs with FP32 accumulation) and cuDNN FlashAttention, Native Aegis achieves **71.03 ms/step (230,705 tok/s)** versus PyTorch's **82.82 ms/step (198,000 tok/s)**, delivering a **+16.5% sustained throughput boost**.
+* **Deterministic Rounding & Loss Convergence:** Replacing stochastic bit-dithering with deterministic round-to-nearest-even (`__float2bfloat16_rn`) collapsed the step-2,500 loss divergence by **70.0%**. In a 5,000-step test, both engines converged to the identical loss floor (~0.21 nats) with a final delta of strictly **0.0110 nats (1.1%)**, while Native Aegis completed the run **48.15 seconds faster (-12.0% total runtime)**.
+* **Kernel Page Fault Floor:** Across 1 hour of continuous ingestion, PyTorch generated **295,688,915 minor page faults** (11.616 faults/batch), while Aegis Flat Arena generated strictly **2 page faults** with **0.000 MB VmData heap drift**.
 
 ---
 
@@ -277,7 +299,7 @@ To evaluate physical stability beyond micro-benchmarks, the Aegis training harne
 
 * **Total Tokens Processed:** Over **878 Million tokens** evaluated across Windows and Linux.
 * **Sustained Throughput:** Up to **135,216 tokens/sec** (Windows) and **109,185 tokens/sec** (Linux Native C10 + TF32).
-* **Cryptographic Provenance:** 100% verified FNV-1a checksum chains across all sequential iterations (`0xFEA389B3` on Windows, `0xD9B26BEA` on Linux).
+* **In-Band Tamper-Evident Provenance:** 100% verified FNV-1a checksum chains across all sequential iterations (`0xFEA389B3` on Windows, `0xD9B26BEA` on Linux).
 * **Dedicated GPU Memory Flatline:** PyTorch VRAM allocated and reserved remained identical across tens of thousands of steps with 0.00 MB drift.
 
 Complete time-series telemetry files:
@@ -325,8 +347,8 @@ If the C++20 transpiler had an unmanaged heap leak, the leak curve would have be
 | **Host VmData Drift** | N/A (Windows Commit) | N/A | **0.00 MB (Locked @ 2,948.07 MB)** | **Zero heap growth in virtual data segment** |
 | **Host Memory Net Delta** | +4.97 MB (Commit) | +2.25 MB (`VmRSS`) | +4.59 MB (`VmRSS` sawtooth) | Allocator driver reserve boundaries |
 | **Hardware Core Temp** | 74 deg C steady-state | 67 deg C steady-state | **56 deg C steady-state** | **Zero thermal throttling on laptop GPU** |
-| **In-Band Provenance** | 100% Chain (29,711 steps) | 100% Chain (15,276 steps) | **100% Chain (23,939 steps)** | Cryptographic batch attestation verified |
-| **Final Checksum Hash** | `0xFEA389B3` | `0x40AC1A6B` | `0xD9B26BEA` | Cryptographic continuity intact |
+| **In-Band Provenance** | 100% Chain (29,711 steps) | 100% Chain (15,276 steps) | **100% Chain (23,939 steps)** | In-band tamper-evident sequence attestation verified |
+| **Final Checksum Hash** | `0xFEA389B3` | `0x40AC1A6B` | `0xD9B26BEA` | Checksum continuity intact |
 | **Production Hardening** | **Baseline Verified** | **Empirical PASS** | **Production Hardened** | Continuous bare-metal soak |
 
 *\*Note on throughput variation across benchmark setups: The 146,243 tokens/sec figure represents peak burst feeder throughput with 16,384 tokens/step (Batch 64 x Block 256) into pinned GPU device memory. Sustained end-to-end training throughput across unbroken 60-minute runs is 135,216 tokens/sec on Windows 11 and 109,185 tokens/sec on Linux Ubuntu 24.04 (with native PyTorch C10 operator integration, TF32 precision, and double-buffered CUDA streams).*

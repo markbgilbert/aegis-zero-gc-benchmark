@@ -402,11 +402,22 @@ def main():
     json_path = os.path.join(results_dir, "aegis_soak_linux_receipt.json")
     md_path = os.path.join(results_dir, "aegis_soak_linux_receipt.md")
 
+    os_desc = f"{platform.system()} {platform.machine()}"
+    if os.path.exists("/etc/os-release"):
+        try:
+            with open("/etc/os-release") as f:
+                for line in f:
+                    if line.startswith("PRETTY_NAME="):
+                        os_desc = line.strip().split("=", 1)[1].strip('"')
+                        break
+        except Exception:
+            pass
+
     receipt_data = {
         "benchmark_classification": "AL-AI-04 / AL-AI-05 (Linux Native)",
         "entity": "Aventine Labs LLC",
         "author": "Mark Gilbert (@markbgilbert : mbgilbert@gmail.com), Founder & Principal Systems Architect",
-        "operating_system": "Linux x86_64 (Ubuntu MATE 24.04.3 LTS)",
+        "operating_system": os_desc,
         "device": args.device.upper(),
         "gpu_model": torch.cuda.get_device_name(0) if args.device == "cuda" else "N/A",
         "model_architecture": f"10.69M Parameter Micro-GPT (L{args.n_layer} H{args.n_head} D{args.n_embd} B{args.block_size} V{vocab_size})",
