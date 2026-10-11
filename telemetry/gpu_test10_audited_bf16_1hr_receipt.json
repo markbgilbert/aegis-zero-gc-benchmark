@@ -1,0 +1,43 @@
+{
+  "benchmark_id": "AL-DEV-40-NATIVE-CUDA-BF16",
+  "mode": "duration",
+  "audit_enabled": true,
+  "timestamp_utc": 1790793332,
+  "actual_duration_sec": 3600.04,
+  "measured_steps": 50937,
+  "batch_size": 64,
+  "block_size": 256,
+  "tokens_per_step": 16384,
+  "total_tokens_trained": 834551808,
+  "average_tokens_per_sec": 231817,
+  "step_0_untrained_loss": 4.29357,
+  "warmup_steps": 50,
+  "post_warmup_measured_step_0_loss": 2.7427,
+  "post_warmup_measured_step_0_global_step": 50,
+  "final_loss": 0.105857,
+  "final_smoothed_loss": 0.106768,
+  "pillar1_audit_hash": "0xf5b0b764",
+  "memory": {
+    "baseline_vmrss_mb": 821.129,
+    "final_vmrss_mb": 821.906,
+    "net_vmrss_drift_mb": 0.777344,
+    "baseline_vmdata_mb": 600.441,
+    "final_vmdata_mb": 600.441,
+    "vma_count_baseline": 201,
+    "vma_count_final": 202
+  },
+  "kernel": {
+    "baseline_page_faults": 53368,
+    "final_page_faults": 53416,
+    "active_page_faults": 48,
+    "page_fault_rate_per_sec": 0.0133332,
+    "voluntary_ctxt_switches": 49,
+    "nonvoluntary_ctxt_switches": 118044
+  },
+  "distributions": {
+    "t_cpu_extract_us": {"min": 14.157, "p50": 19.155, "p95": 23.885, "p99": 32.27, "max": 156.544, "mean": 19.7674},
+    "t_dma_ms": {"min": 0.05, "p50": 0.05, "p95": 0.05, "p99": 0.05, "max": 0.05, "mean": 0.05},
+    "t_comp_ms": {"min": 65.8396, "p50": 70.6037, "p95": 71.2774, "p99": 71.536, "max": 76.2225, "mean": 70.6362},
+    "t_wall_ms": {"min": 65.8589, "p50": 70.6232, "p95": 71.2974, "p99": 71.555, "max": 76.2451, "mean": 70.656}
+  }
+}

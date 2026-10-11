@@ -10,3 +10,7 @@ dist/
 *.exe
 .DS_Store
 Thumbs.db
+
+aegis_trainer
+aegis_trainer_bf16
+*.o

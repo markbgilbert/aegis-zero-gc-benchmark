@@ -1,0 +1,30 @@
+{
+  "benchmark_id": "AL-DEV-40-PYTORCH-BF16-1HR",
+  "timestamp_utc": 1790744256,
+  "target_duration_sec": 3600.0,
+  "actual_duration_sec": 3600.0224085579976,
+  "total_steps": 44629,
+  "tokens_per_step": 16384,
+  "total_tokens_trained": 731201536,
+  "average_tokens_per_sec": 203110.27349768236,
+  "step_0_untrained_loss": 4.293591499328613,
+  "final_loss": 0.11016910523176193,
+  "final_smoothed_loss": 0.10993179280013081,
+  "memory": {
+    "baseline_vmrss_mb": 1581.15234375,
+    "final_vmrss_mb": 1672.59375,
+    "net_vmrss_drift_mb": 91.44140625,
+    "baseline_vmdata_mb": 1546.6171875,
+    "final_vmdata_mb": 1548.3984375,
+    "net_vmdata_drift_mb": 1.78125
+  },
+  "kernel": {
+    "total_active_page_faults": 1215452,
+    "fault_rate_per_sec": 337.6234539847917
+  },
+  "step_wall_ms": {
+    "p50": 80.47640800941736,
+    "p95": 80.91442997101694,
+    "p99": 81.14451798610389
+  }
+}

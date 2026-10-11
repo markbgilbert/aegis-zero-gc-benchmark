@@ -17,6 +17,24 @@ Core Implementation: Native C11 (AVX2 SIMD Flat Arena) + C++17 PyTorch C10 Dispa
 
 ---
 
+## Standalone Native C++/CUDA Trainer (No Python Dependencies)
+
+For engineers looking to bypass Python GIL pauses, Conda environment conflicts, and PyTorch dynamic memory churn entirely, this repository includes a standalone, pure C++20 / CUDA training engine (`aegis_trainer_bf16.cu`) compiled with cuBLASLt BF16 Tensor Cores and cuDNN FlashAttention:
+
+```bash
+# Build the native BF16 trainer
+make aegis_trainer_bf16
+
+# Run the 10.65M nanoGPT training soak directly on physical GPU silicon
+./aegis_trainer_bf16
+```
+
+* **Zero Python Overhead:** Executes data ingestion, forward pass, backward pass, AdamW parameter updates, and in-band state hashing natively in compiled machine code.
+* **Hardware Architecture:** Requires NVIDIA GPU (Blackwell `sm_120`, Ada `sm_89`, Hopper `sm_90`, or Ampere `sm_80`), CUDA Toolkit, and cuDNN.
+* **Interactive Telemetry Lab:** Open `aegis_silicon_visualizer.html` in any browser to inspect the full 50,937-step telemetry stream, memory curves, and tamper falsification tests offline.
+
+---
+
 ## Empirical Architecture Performance Dashboard (60-Minute GPU Soak Test)
 
 ![Aegis Zero-GC Performance Dashboard](./docs/aegis_performance_dashboard_polished.png)
